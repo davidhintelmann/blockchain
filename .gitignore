@@ -1,2 +1,5 @@
-#ignore python/jupyter file
-*.ipynb
+# ignore python/jupyter file
+# *.ipynb
+
+# ignore benchmarks
+bparser/benchmarks

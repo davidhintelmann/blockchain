@@ -6,6 +6,10 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"time"
+
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 
 	"github.com/davidhintelmann/blockchain/bparser"
 )
@@ -29,25 +33,34 @@ func main() {
 
 	fmt.Println(filepath.Dir(blocksFilePath))
 
+	globStart := time.Now()
 	matches, err := filepath.Glob(blocksFilePath + "*.dat")
 	if err != nil {
 		log.Fatalf("error: %v\n", err)
 	}
+	fmt.Printf("duration of glob: %v\n", time.Since(globStart))
 
 	fmt.Println(len(matches))
 	fmt.Println(matches[0])
 	// for _, v := range matches {
 	// 	fmt.Println(v)
 	// }
+
+	fileStart := time.Now()
 	file, err := os.Open(matches[0])
 	if err != nil {
 		log.Fatalf("error: %v\n", err)
 	}
+	defer file.Close()
 
 	readAll, err := io.ReadAll(file)
 	if err != nil {
 		log.Fatalf("error: %v\n", err)
 	}
+	fmt.Printf("duration of file read: %v\n", time.Since(fileStart))
 
 	fmt.Println(readAll[:283])
+	blkFileLen := len(readAll)
+	p := message.NewPrinter(language.English)
+	p.Printf("block file length: %d\n", blkFileLen)
 }
