@@ -2,7 +2,8 @@ package main
 
 import (
 	"fmt"
-	"learn/blockchain/bparser"
+
+	"github.com/davidhintelmann/blockchain/bparser"
 )
 
 const (
