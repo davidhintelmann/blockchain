@@ -70,7 +70,7 @@ def parse_blocks(blks: list[bytes], block_height_start: int=0, block_height_end:
             block_nonce = block_header[144:152]
             block_nonce_swap = bytearray.fromhex(block_nonce)
             block_nonce_swap.reverse()
-            tmp_block['nonce'] = int(block_nonce_swap.hex(), 16)
+            tmp_block['nonce'] = block_nonce_swap.hex()
             # print(f"block nonce swap: {int(block_nonce_swap.hex(), 16)}")
 
             # tx_ids_raw = raw_blk[168:block_size]
