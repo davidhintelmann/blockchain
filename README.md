@@ -1,6 +1,6 @@
 # Blockchain
 
-This repo is for parsing raw block data from bitcoin-core using [go lang](https://go.dev/) programming language. Specifically parsing `.dat` files.
+This repo is for parsing raw block data from bitcoin-core using [go](https://go.dev/) programming language. Specifically parsing `.dat` files.
 
 ## Folders and Files
 
