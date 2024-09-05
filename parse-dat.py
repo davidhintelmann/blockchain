@@ -1,7 +1,7 @@
 import datetime
 import glob
 
-def parse_blocks(blks: list[bytes], block_height_start: int=0, block_height_end: int=-1, input_remainder: bytes='') -> (dict, int):
+def parse_blocks(blks: list[bytes], block_height_start: int=0, block_height_end: int=-1, input_remainder: bytes='') -> list[dict, int, str]:
     blocks = {}
     block_remainder = ''
     # block_height = 0
