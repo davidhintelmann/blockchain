@@ -4,11 +4,17 @@ This repo is for parsing raw block data from bitcoin-core using [go lang](https:
 
 ## Folders and Files
 
-bparser
+### folders
+
+**bparser**
 - package for parsing bitcoin-core
 - contains benchmarks, though the results are ignored via `.gitignore`
 
-cmd
+**cmd**
 - main file to run
 
+### files
+
 The `explore.ipynb` jupyter notebook is for development purposes.
+
+The `parse-dat.py` file is a python script for parsing bitcoin-core `.dat` files.
