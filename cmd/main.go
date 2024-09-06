@@ -34,15 +34,10 @@ func main() {
 
 	fmt.Println(filepath.Dir(blocksFilePath))
 
-	globStart := time.Now()
 	matches, err := bparser.GlobDat(blocksFilePath)
 	if err != nil {
 		log.Fatalf("error: %v\n", err)
 	}
-	fmt.Printf("duration of glob: %v\n", time.Since(globStart))
-
-	fmt.Println(len(matches))
-	fmt.Println(matches[0])
 
 	fileStart := time.Now()
 	file, err := os.Open(matches[0])
@@ -57,11 +52,17 @@ func main() {
 	}
 	fmt.Printf("duration of file read: %v\n", time.Since(fileStart))
 
-	fmt.Println(readAll[:295])
+	// fmt.Println(readAll[:295])
 	blkFileLen := len(readAll)
 	p := message.NewPrinter(language.English)
 	p.Printf("block file length: %d\n", blkFileLen)
+	p.Printf("block height: %d\n", blk00000Height)
 	fmt.Println()
-	fmt.Println(blk00000Height)
-	bparser.ParseBlocks(readAll, 0, blk00000Height, []byte{0})
+
+	parseStart := time.Now()
+	err = bparser.ParseBlocks(readAll, 0, 1, []byte{0})
+	if err != nil {
+		log.Fatalf("error: %v\n", err)
+	}
+	fmt.Printf("duration of parsing single dat file: %v\n", time.Since(parseStart))
 }

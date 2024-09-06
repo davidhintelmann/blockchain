@@ -24,13 +24,76 @@ func TestParseGenesis(t *testing.T) {
 		t.Errorf("Expected magic number to equal %s, but got %s\n", "F9BEB4D9", mn)
 	}
 
-	blockSize, err := bparser.ParseBlockSize(geneisBlockDec)
+	// test ParseBlockSizeFunc function
+	blockSize, err := bparser.ParseBlockSizeFunc(geneisBlockDec)
 	if err != nil {
 		t.Errorf("could not parse int, error: %v\n", err)
 	}
 
 	if blockSize != 285 {
 		t.Errorf("Expected block size to equal %s, but got %d\n", "285", blockSize)
+	}
+
+	// test ParseBlockSize function
+	blockSize, err = bparser.ParseBlockSize(geneisBlockDec)
+	if err != nil {
+		t.Errorf("could not parse int, error: %v\n", err)
+	}
+
+	if blockSize != 285 {
+		t.Errorf("Expected block size to equal %s, but got %d\n", "285", blockSize)
+	}
+
+	// test ParseBlockRaw function
+	_, err = bparser.ParseBlockRaw(geneisBlockDec)
+	if err != nil {
+		t.Errorf("could not parse int, error: %v\n", err)
+	}
+
+	// fmt.Printf("Magic Number: %v\nBlock Size: %v\n", blockRaw.MagicNumber, blockRaw.Size)
+	// fmt.Printf("Version: %v\nPrev Block: %v\nMerkle Root: %v\nTimestamp: %v\nBits: %v\nNonce: %v\n", blockRaw.BlockHeader.Version, blockRaw.BlockHeader.PrevBlock, blockRaw.BlockHeader.MerkleRoot, blockRaw.BlockHeader.Timestamp, blockRaw.BlockHeader.Bits, blockRaw.BlockHeader.Nonce)
+
+	// test ParseBlockStr function
+	_, err = bparser.ParseBlockStr(geneisBlockDec)
+	if err != nil {
+		t.Errorf("could not parse int, error: %v\n", err)
+	}
+	// fmt.Printf("Magic Number: %v\nBlock Size: %v\n", block.MagicNumber, block.Size)
+	// fmt.Printf("Version: %v\nPrev Block: %v\nMerkle Root: %v\nTimestamp: %v\nBits: %v\nNonce: %v\n", block.BlockHeader.Version, block.BlockHeader.PrevBlock, block.BlockHeader.MerkleRoot, block.BlockHeader.Timestamp, block.BlockHeader.Bits, block.BlockHeader.Nonce)
+
+	// test ParseBlock function
+	_, err = bparser.ParseBlock(geneisBlockDec)
+	if err != nil {
+		t.Errorf("could not parse int, error: %v\n", err)
+	}
+	// fmt.Printf("Magic Number: %v\nBlock Size: %v\n", block.MagicNumber, block.Size)
+	// blockTimeStamp := time.Unix(block.BlockHeader.TimestampUnix, 0)
+	// fmt.Printf("Version: %v\nPrev Block: %v\nMerkle Root: %v\nTimestamp: %v\nBits: %v\nNonce: %v\n", block.BlockHeader.Version, block.BlockHeader.PrevBlock, block.BlockHeader.MerkleRoot, blockTimeStamp, block.BlockHeader.Bits, block.BlockHeader.Nonce)
+}
+
+func TestParseBlockSize(t *testing.T) {
+	// test ParseBlockSizeRaw
+	_, err := bparser.ParseBlockSizeRaw(geneisBlockDec)
+	if err != nil {
+		t.Errorf("test ParseBlockSizeRaw could not parse block to find the size of the next block, error: %v\n", err)
+	}
+
+	_, err = bparser.ParseBlockSizeRaw(geneisBlockDec[:2])
+	if err == nil {
+		t.Errorf("test ParseBlockSizeRaw expected to fail since it was given a slice which is too small, error: %v\n", err)
+	}
+
+	// test ParseBlockSize
+	blockSize, err := bparser.ParseBlockSize(geneisBlockDec)
+	if err != nil {
+		t.Errorf("test ParseBlockSize could not parse block to find the size of the next block, error: %v\n", err)
+	} else if blockSize != 285 {
+		t.Errorf("test ParseBlockSize expected block size of 285 but got %d, error: %v\n", blockSize, err)
+	}
+
+	_, err = bparser.ParseBlockSize(geneisBlockDec[:2])
+	if err == nil {
+		t.Errorf("test ParseBlockSize expected to fail since it was given a slice which is too small, error: %v\n", err)
 	}
 }
 
