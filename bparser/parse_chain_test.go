@@ -7,10 +7,10 @@ import (
 	"github.com/davidhintelmann/blockchain/bparser"
 )
 
-const (
-	genesisBlock   = "f9beb4d91d0100000100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c0101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73ffffffff0100f2052a01000000434104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac00000000"
-	blk00000Height = 0
-)
+// const (
+// 	genesisBlock   = "f9beb4d91d0100000100000000000000000000000000000000000000000000000000000000000000000000003ba3edfd7a7b12b27ac72c3e67768f617fc81bc3888a51323a9fb8aa4b1e5e4a29ab5f49ffff001d1dac2b7c0101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff4d04ffff001d0104455468652054696d65732030332f4a616e2f32303039204368616e63656c6c6f72206f6e206272696e6b206f66207365636f6e64206261696c6f757420666f722062616e6b73ffffffff0100f2052a01000000434104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac00000000"
+// 	blk00000Height = 0
+// )
 
 var (
 	geneisBlockDec = []byte{249, 190, 180, 217, 29, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 59, 163, 237, 253, 122, 123, 18, 178, 122, 199, 44, 62, 103, 118, 143, 97, 127, 200, 27, 195, 136, 138, 81, 50, 58, 159, 184, 170, 75, 30, 94, 74, 41, 171, 95, 73, 255, 255, 0, 29, 29, 172, 43, 124, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 77, 4, 255, 255, 0, 29, 1, 4, 69, 84, 104, 101, 32, 84, 105, 109, 101, 115, 32, 48, 51, 47, 74, 97, 110, 47, 50, 48, 48, 57, 32, 67, 104, 97, 110, 99, 101, 108, 108, 111, 114, 32, 111, 110, 32, 98, 114, 105, 110, 107, 32, 111, 102, 32, 115, 101, 99, 111, 110, 100, 32, 98, 97, 105, 108, 111, 117, 116, 32, 102, 111, 114, 32, 98, 97, 110, 107, 115, 255, 255, 255, 255, 1, 0, 242, 5, 42, 1, 0, 0, 0, 67, 65, 4, 103, 138, 253, 176, 254, 85, 72, 39, 25, 103, 241, 166, 113, 48, 183, 16, 92, 214, 168, 40, 224, 57, 9, 166, 121, 98, 224, 234, 31, 97, 222, 182, 73, 246, 188, 63, 76, 239, 56, 196, 243, 85, 4, 229, 30, 193, 18, 222, 92, 56, 77, 247, 186, 11, 141, 87, 138, 76, 112, 43, 107, 241, 29, 95, 172, 0, 0, 0, 0, 249, 190}
@@ -35,7 +35,7 @@ func TestParseGenesis(t *testing.T) {
 	}
 
 	// test ParseBlockSize function
-	blockSize, err = bparser.ParseBlockSize(geneisBlockDec)
+	blockSize, err = bparser.ParseBlockSize(geneisBlockDec[4:8])
 	if err != nil {
 		t.Errorf("could not parse int, error: %v\n", err)
 	}
@@ -84,7 +84,7 @@ func TestParseBlockSize(t *testing.T) {
 	}
 
 	// test ParseBlockSize
-	blockSize, err := bparser.ParseBlockSize(geneisBlockDec)
+	blockSize, err := bparser.ParseBlockSizeFunc(geneisBlockDec)
 	if err != nil {
 		t.Errorf("test ParseBlockSize could not parse block to find the size of the next block, error: %v\n", err)
 	} else if blockSize != 285 {
@@ -95,6 +95,65 @@ func TestParseBlockSize(t *testing.T) {
 	if err == nil {
 		t.Errorf("test ParseBlockSize expected to fail since it was given a slice which is too small, error: %v\n", err)
 	}
+}
+
+func TestParseTransactionBlockSize(t *testing.T) {
+	tests := []struct {
+		name            string
+		transationBytes []byte
+		want            int64
+	}{
+		{
+			name:            "genesis block size, leading byte <= FC",
+			transationBytes: []byte{01},
+			want:            int64(1),
+		},
+		{
+			name:            "single byte - 252 leading byte <= FC",
+			transationBytes: []byte{252},
+			want:            int64(252),
+		},
+		{
+			name:            "next two bytes - 253, 232, 03 leading byte == FD",
+			transationBytes: []byte{253, 232, 03},
+			want:            int64(1_000),
+		},
+		{
+			name:            "next four bytes - 254, 160, 134, 01, 00 leading byte == FE",
+			transationBytes: []byte{254, 160, 134, 01, 00},
+			want:            int64(100_000),
+		},
+		{
+			name:            "next eight bytes - 255, 00, 228, 11, 84, 02, 00, 00, 00 leading byte == FF",
+			transationBytes: []byte{255, 00, 228, 11, 84, 02, 00, 00, 00},
+			want:            int64(10_000_000_000),
+		},
+	}
+
+	// test genesis block first
+	blockSize, err := bparser.ParseBlockSizeFunc(geneisBlockDec)
+	if err != nil {
+		t.Errorf("test ParseBlockSize could not parse block to find the size of the next block, error: %v\n", err)
+	}
+
+	genesisTransactionBlock := geneisBlockDec[88 : blockSize+8]
+	gensisTxCount, err := bparser.ParseTransactionBlockSize(genesisTransactionBlock)
+	if err != nil {
+		t.Errorf("test ParseTransactionBlockSize could not parse block to find the size of the next block, error: %v\n", err)
+	} else if gensisTxCount != 1 {
+		t.Errorf("test ParseTransactionBlockSize expected gensisTxCount to be equal to 1, error: %v\n", err)
+	}
+
+	// test leading bytes from the table at https://learnmeabitcoin.com/technical/general/compact-size/#structure
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, _ := bparser.ParseTransactionBlockSize(tt.transationBytes)
+			if got != tt.want {
+				t.Errorf("ParseTransactionBlockSize(blkTranSize:%v) got = %v, want %v", tt.transationBytes, got, tt.want)
+			}
+		})
+	}
+
 }
 
 func ExampleByteSwap() {

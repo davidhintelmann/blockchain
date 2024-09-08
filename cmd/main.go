@@ -23,12 +23,7 @@ const (
 
 func main() {
 	fmt.Printf("Gensis Block Hash: %s\nGensis Block Swap: %s\n", gensisBlock, gensisBlockSwap)
-
-	// h := sha256.New()
-	// h.Write(genesisByte)
-	// bs := h.Sum(nil)
-	// fmt.Printf("Gensis Blk SHA256: %x\n", bs)
-
+	// two lines below are not necessary
 	fmt.Println(bparser.ByteSwap(gensisBlock))
 	fmt.Println(bparser.ByteSwapArray(gensisBlock))
 
