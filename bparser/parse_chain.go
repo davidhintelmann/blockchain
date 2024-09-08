@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davidhintelmann/blockchain/bparser/ttmpl"
+	"github.com/davidhintelmann/blockchain/ttmpl"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 )
