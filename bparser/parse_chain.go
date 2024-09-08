@@ -5,12 +5,17 @@ package bparser
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
+
+	"golang.org/x/text/language"
+	"golang.org/x/text/message"
 )
 
 /*
@@ -77,7 +82,7 @@ func GlobDat(blocksFilePath string) ([]string, error) {
 }
 
 /*
-ParseBlocks function will parse an entire .dat bitcoin-core file and output a text file.
+ParseBlocks function will parse an entire .dat bitcoin-core file (input in the form of bytes), and output a text file.
 */
 func ParseBlocks(blks []byte, block_height_start int, block_height_end int, input_remainder []byte) error {
 	// blocks := make(map[int]BlockStructure)
@@ -89,20 +94,24 @@ func ParseBlocks(blks []byte, block_height_start int, block_height_end int, inpu
 	// split bytes on magic number 'f9beb4d9'
 	blocks := bytes.Split(blks, []byte{249, 190, 180, 217})[1:]
 
-	for _, b := range blocks {
+	for i, b := range blocks {
 		// fmt.Printf("parsing block number: %d\n", i)
 		blk := append([]byte{249, 190, 180, 217}, b...)
-		_, err := ParseBlock(blk)
+		block, err := ParseBlock(blk)
 		if err != nil {
 			errMsg := fmt.Sprintf("could not parse block, error: %v\n", err)
 			return errors.New(errMsg)
 		}
 
-		// fmt.Printf("Magic Number: %v\nBlock Size: %v\n", block.MagicNumber, block.Size)
-		// blockTimeStamp := time.Unix(block.BlockHeader.TimestampUnix, 0)
-		// fmt.Printf("Version: %v\nPrev Block: %v\nMerkle Root: %v\nTimestamp: %v\nBits: %v\nNonce: %v\n", block.BlockHeader.Version, block.BlockHeader.PrevBlock, block.BlockHeader.MerkleRoot, blockTimeStamp, block.BlockHeader.Bits, block.BlockHeader.Nonce)
+		fmt.Printf("Block Number: %d\nMagic Number: %v\nBlock Size  : %v\n", i, block.MagicNumber, block.Size)
+		blockTimeStamp := time.Unix(block.BlockHeader.TimestampUnix, 0)
+		fmt.Printf("Version     : %v\nBlock Hash  : %v\nPrev Block  : %v\nMerkle Root : %v\nTimestamp   : %v\nBits        : %v\nNonce       : %v\n\n", block.BlockHeader.Version, block.BlockHeader.BlockHash, block.BlockHeader.PrevBlock, block.BlockHeader.MerkleRoot, blockTimeStamp, block.BlockHeader.Bits, block.BlockHeader.Nonce)
+		if i == 1 {
+			break
+		}
 	}
-	fmt.Printf("parsed %d blocks\n", len(blocks))
+	p := message.NewPrinter(language.English)
+	p.Printf("parsed %d blocks\n", len(blocks))
 	return nil
 }
 
@@ -167,6 +176,7 @@ type BlockData struct {
 
 type BlockHeaderData struct {
 	Version       int64
+	BlockHash     string
 	PrevBlock     string
 	MerkleRoot    string
 	TimestampUnix int64
@@ -211,12 +221,12 @@ func ParseBlockSizeRaw(blks []byte) ([]byte, error) {
 }
 
 /*
-ParseBlockSize function slices the first 4 to 8 bytes and returns an int.
+ParseBlockSize function takes in 4 bytes and returns an int which is length of the incoming block, in number of bytes.
 First the little-endian magic number is converted into big-endian, by swapping the bytes, and finally converted into an int.
 */
-func ParseBlockSize(blks []byte) (int64, error) {
-	if len(blks) >= 8 {
-		parseBlockSize := ParseBlockSizeBytes{Size: blks[4:8]}
+func ParseBlockSize(blkSize []byte) (int64, error) {
+	if len(blkSize) == 4 {
+		parseBlockSize := ParseBlockSizeBytes{Size: blkSize}
 		return parseBlockSize.ParseInt()
 	} else {
 		errMsg := errors.New("can not slice bytes in order to read the size of the next block, index out of bounds")
@@ -247,7 +257,7 @@ ParseBlockRaw function will parse a single block at a time and return byte slice
 */
 func ParseBlockRaw(blks []byte) (ParseBlockBytes, error) {
 	if len(blks) >= 8 {
-		blockSize, err := ParseBlockSize(blks)
+		blockSize, err := ParseBlockSizeFunc(blks)
 		if err != nil {
 			return ParseBlockBytes{}, err
 		}
@@ -284,7 +294,7 @@ ParseBlockStr function will parse a single block at a time and return strings of
 */
 func ParseBlockStr(blks []byte) (ParseBlockString, error) {
 	if len(blks) >= 8 {
-		blockSize, err := ParseBlockSize(blks)
+		blockSize, err := ParseBlockSizeFunc(blks)
 		if err != nil {
 			return ParseBlockString{}, err
 		}
@@ -320,59 +330,173 @@ func ParseBlockStr(blks []byte) (ParseBlockString, error) {
 ParseBlock function will parse a single block at a time and return strings or ints of big-endian numbers.
 */
 func ParseBlock(blks []byte) (BlockData, error) {
-	if len(blks) >= 8 {
-		blockSize, err := ParseBlockSize(blks)
+	if len(blks) >= 4 {
+		blockSize, err := ParseBlockSize(blks[4:8])
 		if err != nil {
-			return BlockData{}, err
-		}
-
-		s, err := strconv.ParseInt(ByteSwap(fmt.Sprintf("%X", blks[4:8])), 16, 64)
-		if err != nil {
-			errMsg := fmt.Sprintf("can not swap size bytes in ParseBlock() function.\nerror: %v\n", err)
+			errMsg := fmt.Sprintf("can not parse block size in ParseBlock() function.\nerror: %v\n", err)
 			return BlockData{}, errors.New(errMsg)
 		}
 
-		v, err := strconv.ParseInt(ByteSwap(fmt.Sprintf("%X", blks[8:12])), 16, 16)
+		// input the slice of block bytes which are apart of block header
+		parseBlockHeader, err := parseBlockHeader(blks[8:88])
 		if err != nil {
-			errMsg := fmt.Sprintf("can not swap version bytes in ParseBlock() function.\nerror: %v\n", err)
+			errMsg := fmt.Sprintf("can not parse header in ParseBlock() function.\nerror: %v\n", err)
 			return BlockData{}, errors.New(errMsg)
 		}
 
-		t, err := strconv.ParseInt(ByteSwap(fmt.Sprintf("%X", blks[76:80])), 16, 64)
+		// input the slice of block bytes which are apart of block transactions
+		parseBlockTransactions, err := parseBlockTransactions(blks[88 : blockSize+8])
 		if err != nil {
-			errMsg := fmt.Sprintf("can not swap time bytes in ParseBlock() function.\nerror: %v\n", err)
+			errMsg := fmt.Sprintf("can not parse transactions in ParseBlock() function.\nerror: %v\n", err)
 			return BlockData{}, errors.New(errMsg)
-		}
-
-		n, err := strconv.ParseInt(ByteSwap(fmt.Sprintf("%X", blks[84:88])), 16, 64)
-		if err != nil {
-			errMsg := fmt.Sprintf("can not swap nonce bytes in ParseBlock() function.\nerror: %v\n", err)
-			return BlockData{}, errors.New(errMsg)
-		}
-
-		parseBlockHeader := BlockHeaderData{
-			Version:       v,
-			PrevBlock:     ByteSwap(fmt.Sprintf("%X", blks[12:44])),
-			MerkleRoot:    ByteSwap(fmt.Sprintf("%X", blks[44:76])),
-			TimestampUnix: t,
-			Bits:          ByteSwap(fmt.Sprintf("%X", blks[80:84])),
-			Nonce:         n,
-		}
-
-		parseBlockTransactions := BlockTransactionsBytes{
-			TxCount: blks[88:90],
-			TxId:    blks[90:blockSize],
 		}
 
 		parseBlock := BlockData{
 			MagicNumber: ByteSwap(fmt.Sprintf("%X", blks[:4])),
-			Size:        s,
+			Size:        blockSize,
 			BlockHeader: parseBlockHeader,
 			Tx:          parseBlockTransactions,
 		}
 		return parseBlock, nil
 	} else {
-		errMsg := errors.New("can not slice bytes in order to read the size of the next block, index out of bounds")
+		errMsg := errors.New("can not slice bytes to read the size of the next block, index out of bounds. block being parsed is too small")
 		return BlockData{}, errMsg
+	}
+}
+
+/*
+parseBlockHeader function is used in ParseBlock function to parse the header block in dat file from bitcoin-core.
+*/
+func parseBlockHeader(blkHeader []byte) (BlockHeaderData, error) {
+	v, err := strconv.ParseInt(ByteSwap(fmt.Sprintf("%X", blkHeader[:4])), 16, 16)
+	if err != nil {
+		errMsg := fmt.Sprintf("can not swap version bytes in ParseBlock() function.\nerror: %v\n", err)
+		return BlockHeaderData{}, errors.New(errMsg)
+	}
+
+	t, err := strconv.ParseInt(ByteSwap(fmt.Sprintf("%X", blkHeader[68:72])), 16, 64)
+	if err != nil {
+		errMsg := fmt.Sprintf("can not swap time bytes in ParseBlock() function.\nerror: %v\n", err)
+		return BlockHeaderData{}, errors.New(errMsg)
+	}
+
+	n, err := strconv.ParseInt(ByteSwap(fmt.Sprintf("%X", blkHeader[76:80])), 16, 64)
+	if err != nil {
+		errMsg := fmt.Sprintf("can not swap nonce bytes in ParseBlock() function.\nerror: %v\n", err)
+		return BlockHeaderData{}, errors.New(errMsg)
+	}
+
+	blockHash := sha256.New()
+	blockHash.Write(blkHeader)
+	sha256_single := blockHash.Sum(nil)
+	blockHash = sha256.New()
+	blockHash.Write(sha256_single)
+	sha256_double := blockHash.Sum(nil)
+	// fmt.Printf("Block Header: %x\n", blkHeader)
+	// fmt.Printf("Block SHA256 single: %x\n", sha256_single)
+	// fmt.Printf("Block SHA256 double: %x\n", sha256_double)
+	slices.Reverse(sha256_double)
+	// fmt.Printf("Block SHA256 swap  : %x\n", sha256_double)
+	prevBlock := blkHeader[4:36]
+	slices.Reverse(prevBlock)
+
+	blockHeaderData := BlockHeaderData{
+		Version:       v,
+		BlockHash:     fmt.Sprintf("%X", sha256_double),
+		PrevBlock:     fmt.Sprintf("%X", prevBlock),
+		MerkleRoot:    ByteSwap(fmt.Sprintf("%X", blkHeader[36:68])),
+		TimestampUnix: t,
+		Bits:          ByteSwap(fmt.Sprintf("%X", blkHeader[72:76])),
+		Nonce:         n,
+	}
+
+	return blockHeaderData, nil
+}
+
+/*
+parseBlockTransactions function is used in ParseBlock function to parse the transaction block in dat file from bitcoin-core.
+*/
+func parseBlockTransactions(blkTransactions []byte) (BlockTransactionsBytes, error) {
+	// txCount, err := parseTransactionBlockSize(blkTransactions[:9])
+	// if err != nil || txCount < 0 {
+	// 	errMsg := fmt.Sprintf("can not parse TransactionBlockSize bytes in parseBlockTransactions() function.\nerror: %v\n", err)
+	// 	return BlockTransactionsBytes{}, errors.New(errMsg)
+	// }
+
+	blockTransactionsBytes := BlockTransactionsBytes{
+		TxCount: blkTransactions[:1],
+		TxId:    blkTransactions[1:],
+	}
+
+	// delete below once done above
+	txCount, err := strconv.ParseInt(ByteSwap(fmt.Sprintf("%X", blockTransactionsBytes.TxCount)), 16, 16)
+	if err != nil {
+		errMsg := fmt.Sprintf("can not swap TxCount bytes in parseBlockTransactions() function.\nerror: %v\n", err)
+		return BlockTransactionsBytes{}, errors.New(errMsg)
+	}
+
+	// size of incoming transaction block as hexidecimal
+	// for more info read https://learnmeabitcoin.com/technical/general/compact-size/
+	// transactionSizeHex := fmt.Sprintf("%x", 255)
+	fmt.Printf("TRANSACTIONS COUNT: %v\n", txCount)
+	fmt.Printf("TRANSACTIONS LEN  : %v\n", len(blockTransactionsBytes.TxId))
+	fmt.Printf("TRANSACTIONS: %v\n", fmt.Sprintf("%X", blockTransactionsBytes.TxId))
+
+	version := blockTransactionsBytes.TxId[:4]
+	// marker := blockTransactionsBytes.TxId[4:5]
+	// flag := blockTransactionsBytes.TxId[5:6]
+
+	// variable size for inputCount, learn more at https://learnmeabitcoin.com/technical/general/compact-size/
+	// inputCount := blockTransactionsBytes.TxId[6:7]
+	// inputs :=
+
+	// variable size for outputCount, learn more at https://learnmeabitcoin.com/technical/general/compact-size/
+	// outputCount := blockTransactionsBytes.TxId[6:7]
+
+	fmt.Printf("TV: %v\n", fmt.Sprintf("%X", version))
+
+	return blockTransactionsBytes, nil
+}
+
+/*
+parseTransactionBlockSize function is used in parseBlockTransactions function to parse the tx count in the transaction block.
+*/
+func ParseTransactionBlockSize(blkTranSize []byte) (int64, error) {
+	leadingByte := strings.ToUpper(fmt.Sprintf("%x", blkTranSize[0]))
+	// fmt.Printf("leading byte: %v\n", leadingByte)
+	if leadingByte <= "FC" && leadingByte > "0" {
+		txCount, err := strconv.ParseInt(leadingByte, 16, 16)
+		if err != nil {
+			errMsg := fmt.Sprintf("can not swap TxCount bytes in parseTransactionBlockSize() function.\nerror: %v\n", err)
+			return -1, errors.New(errMsg)
+		}
+		return txCount, nil
+	} else if leadingByte == "FD" {
+		number := ByteSwap(fmt.Sprintf("%x", blkTranSize[1:3]))
+		txCount, err := strconv.ParseInt(number, 16, 64)
+		if err != nil {
+			errMsg := fmt.Sprintf("can not swap TxCount bytes in parseTransactionBlockSize() function.\nerror: %v\n", err)
+			return -1, errors.New(errMsg)
+		}
+		return txCount, nil
+	} else if leadingByte == "FE" {
+		number := ByteSwap(fmt.Sprintf("%x", blkTranSize[1:5]))
+		txCount, err := strconv.ParseInt(number, 16, 64)
+		if err != nil {
+			errMsg := fmt.Sprintf("can not swap TxCount bytes in parseTransactionBlockSize() function.\nerror: %v\n", err)
+			return -1, errors.New(errMsg)
+		}
+		return txCount, nil
+	} else if leadingByte == "FF" {
+		number := ByteSwap(fmt.Sprintf("%x", blkTranSize[1:9]))
+		txCount, err := strconv.ParseInt(number, 16, 64)
+		if err != nil {
+			errMsg := fmt.Sprintf("can not swap TxCount bytes in parseTransactionBlockSize() function.\nerror: %v\n", err)
+			return -1, errors.New(errMsg)
+		}
+		return txCount, nil
+	} else {
+		errMsg := fmt.Sprintln("did not expect to return outside of if statement in parseTransactionBlockSize() function. leading byte does not match anything in table from https://learnmeabitcoin.com/technical/general/compact-size/#structure")
+		return int64(-1), errors.New(errMsg)
 	}
 }

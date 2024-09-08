@@ -35,7 +35,7 @@ func TestParseGenesis(t *testing.T) {
 	}
 
 	// test ParseBlockSize function
-	blockSize, err = bparser.ParseBlockSize(geneisBlockDec)
+	blockSize, err = bparser.ParseBlockSize(geneisBlockDec[4:8])
 	if err != nil {
 		t.Errorf("could not parse int, error: %v\n", err)
 	}
@@ -84,7 +84,7 @@ func TestParseBlockSize(t *testing.T) {
 	}
 
 	// test ParseBlockSize
-	blockSize, err := bparser.ParseBlockSize(geneisBlockDec)
+	blockSize, err := bparser.ParseBlockSizeFunc(geneisBlockDec)
 	if err != nil {
 		t.Errorf("test ParseBlockSize could not parse block to find the size of the next block, error: %v\n", err)
 	} else if blockSize != 285 {
@@ -95,6 +95,65 @@ func TestParseBlockSize(t *testing.T) {
 	if err == nil {
 		t.Errorf("test ParseBlockSize expected to fail since it was given a slice which is too small, error: %v\n", err)
 	}
+}
+
+func TestParseTransactionBlockSize(t *testing.T) {
+	tests := []struct {
+		name            string
+		transationBytes []byte
+		want            int64
+	}{
+		{
+			name:            "genesis block size, leading byte <= FC",
+			transationBytes: []byte{01},
+			want:            int64(1),
+		},
+		{
+			name:            "single byte - 252 leading byte <= FC",
+			transationBytes: []byte{252},
+			want:            int64(252),
+		},
+		{
+			name:            "next two bytes - 253, 232, 03 leading byte == FD",
+			transationBytes: []byte{253, 232, 03},
+			want:            int64(1_000),
+		},
+		{
+			name:            "next four bytes - 254, 160, 134, 01, 00 leading byte == FE",
+			transationBytes: []byte{254, 160, 134, 01, 00},
+			want:            int64(100_000),
+		},
+		{
+			name:            "next eight bytes - 255, 00, 228, 11, 84, 02, 00, 00, 00 leading byte == FF",
+			transationBytes: []byte{255, 00, 228, 11, 84, 02, 00, 00, 00},
+			want:            int64(10_000_000_000),
+		},
+	}
+
+	// test genesis block first
+	blockSize, err := bparser.ParseBlockSizeFunc(geneisBlockDec)
+	if err != nil {
+		t.Errorf("test ParseBlockSize could not parse block to find the size of the next block, error: %v\n", err)
+	}
+
+	genesisTransactionBlock := geneisBlockDec[88 : blockSize+8]
+	gensisTxCount, err := bparser.ParseTransactionBlockSize(genesisTransactionBlock)
+	if err != nil {
+		t.Errorf("test ParseTransactionBlockSize could not parse block to find the size of the next block, error: %v\n", err)
+	} else if gensisTxCount != 1 {
+		t.Errorf("test ParseTransactionBlockSize expected gensisTxCount to be equal to 1, error: %v\n", err)
+	}
+
+	// test leading bytes from the table at https://learnmeabitcoin.com/technical/general/compact-size/#structure
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, _ := bparser.ParseTransactionBlockSize(tt.transationBytes)
+			if got != tt.want {
+				t.Errorf("ParseTransactionBlockSize(blkTranSize:%v) got = %v, want %v", tt.transationBytes, got, tt.want)
+			}
+		})
+	}
+
 }
 
 func ExampleByteSwap() {
