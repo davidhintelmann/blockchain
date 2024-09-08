@@ -137,12 +137,14 @@ func TestParseTransactionBlockSize(t *testing.T) {
 	}
 
 	genesisTransactionBlock := geneisBlockDec[88 : blockSize+8]
-	gensisTxCount, err := bparser.ParseTransactionBlockSize(genesisTransactionBlock)
-	if err != nil {
-		t.Errorf("test ParseTransactionBlockSize could not parse block to find the size of the next block, error: %v\n", err)
-	} else if gensisTxCount != 1 {
-		t.Errorf("test ParseTransactionBlockSize expected gensisTxCount to be equal to 1, error: %v\n", err)
-	}
+	t.Run("parse genesis block from const in test file", func(t *testing.T) {
+		got, err := bparser.ParseTransactionBlockSize(genesisTransactionBlock)
+		if err != nil {
+			t.Errorf("test ParseTransactionBlockSize could not parse block to find the size of the next block, error: %v\n", err)
+		} else if got != 1 {
+			t.Errorf("ParseTransactionBlockSize(blkTranSize:%v) got = %v, want %v", genesisTransactionBlock, got, 1)
+		}
+	})
 
 	// test leading bytes from the table at https://learnmeabitcoin.com/technical/general/compact-size/#structure
 	for _, tt := range tests {
