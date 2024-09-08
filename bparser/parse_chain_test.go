@@ -62,7 +62,7 @@ func TestParseGenesis(t *testing.T) {
 	// fmt.Printf("Version: %v\nPrev Block: %v\nMerkle Root: %v\nTimestamp: %v\nBits: %v\nNonce: %v\n", block.BlockHeader.Version, block.BlockHeader.PrevBlock, block.BlockHeader.MerkleRoot, block.BlockHeader.Timestamp, block.BlockHeader.Bits, block.BlockHeader.Nonce)
 
 	// test ParseBlock function
-	_, err = bparser.ParseBlock(geneisBlockDec)
+	_, err = bparser.ParseBlock(geneisBlockDec, 0)
 	if err != nil {
 		t.Errorf("could not parse int, error: %v\n", err)
 	}

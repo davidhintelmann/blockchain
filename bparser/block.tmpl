@@ -1,0 +1,12 @@
+---
+Block Number: {{ .BlockNumber }}
+Magic       : {{ .Magic }}
+Block Size  : {{ .Size }}
+Version     : {{ .Header.Version }}
+Block Hash  : {{ .Header.BlockHash }}
+Prev Block  : {{ .Header.PrevBlock }}
+Merkle Rook : {{ .Header.MerkleRoot }}
+Timestamp   : {{ .Header.TimestampUnix }}
+Bits        : {{ .Header.Bits }}
+Nonce       : {{ .Header.Nonce }}
+Number of Tx: {{ .Tx.TxCount }}

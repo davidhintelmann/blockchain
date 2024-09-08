@@ -8,13 +8,14 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"log"
+	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
-	"time"
+	"text/template"
 
-	"github.com/davidhintelmann/blockchain/ttmpl"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 )
@@ -98,23 +99,23 @@ func ParseBlocks(blks []byte, block_height_start int, block_height_end int, inpu
 	for i, b := range blocks {
 		// fmt.Printf("parsing block number: %d\n", i)
 		blk := append([]byte{249, 190, 180, 217}, b...)
-		block, err := ParseBlock(blk)
+		block, err := ParseBlock(blk, i)
 		if err != nil {
 			errMsg := fmt.Sprintf("could not parse block, error: %v\n", err)
 			return errors.New(errMsg)
 		}
-		if i == 0 {
-			ttmpl.PrintBlock(block)
-			// fmt.Printf("Block Number: %d\nMagic Number: %v\nBlock Size  : %v\n", i, block.Magic, block.Size)
-			// blockTimeStamp := time.Unix(block.Header.TimestampUnix, 0)
-			// fmt.Printf("Version     : %v\nBlock Hash  : %v\nPrev Block  : %v\nMerkle Root : %v\nTimestamp   : %v\nBits        : %v\nNonce       : %v\n", block.Header.Version, block.Header.BlockHash, block.Header.PrevBlock, block.Header.MerkleRoot, blockTimeStamp, block.Header.Bits, block.Header.Nonce)
-			// fmt.Printf("Transactions: %d\n\n", block.Tx.TxCount)
-		} else if block.Tx.TxCount > 1 {
-			fmt.Printf("Block Number: %d\nMagic Number: %v\nBlock Size  : %v\n", i, block.Magic, block.Size)
-			blockTimeStamp := time.Unix(block.Header.TimestampUnix, 0)
-			fmt.Printf("Version     : %v\nBlock Hash  : %v\nPrev Block  : %v\nMerkle Root : %v\nTimestamp   : %v\nBits        : %v\nNonce       : %v\n", block.Header.Version, block.Header.BlockHash, block.Header.PrevBlock, block.Header.MerkleRoot, blockTimeStamp, block.Header.Bits, block.Header.Nonce)
-			fmt.Printf("Transactions: %d\n\n", block.Tx.TxCount)
-			break
+		// if i == 0 {
+		// 	// must be run from main.go
+		// 	printBlock(block, "../bparser/block.tmpl")
+		// } else if i+1 == len(blocks) { //block.Tx.TxCount > 1 {
+		// 	// must be run from main.go
+		// 	printBlock(block, "../bparser/block.tmpl")
+		// 	fmt.Println()
+		// 	break
+		// }
+		if i+1 == len(blocks) {
+			printBlock(block, "../bparser/block.tmpl")
+			fmt.Println()
 		}
 	}
 	p := message.NewPrinter(language.English)
@@ -175,10 +176,11 @@ type BlockHeaderString struct {
 
 // structs for block strings/int/time data in big-endian format
 type BlockData struct {
-	Magic  string
-	Size   int64
-	Header BlockHeaderData
-	Tx     BlockTransactionsData
+	BlockNumber int
+	Magic       string
+	Size        int64
+	Header      BlockHeaderData
+	Tx          BlockTransactionsData
 }
 
 type BlockHeaderData struct {
@@ -336,7 +338,7 @@ func ParseBlockStr(blks []byte) (ParseBlockString, error) {
 /*
 ParseBlock function will parse a single block at a time and return strings or ints of big-endian numbers.
 */
-func ParseBlock(blks []byte) (BlockData, error) {
+func ParseBlock(blks []byte, blockNum int) (BlockData, error) {
 	if len(blks) >= 4 {
 		blockSize, err := ParseBlockSize(blks[4:8])
 		if err != nil {
@@ -359,10 +361,11 @@ func ParseBlock(blks []byte) (BlockData, error) {
 		}
 
 		parseBlock := BlockData{
-			Magic:  ByteSwap(fmt.Sprintf("%X", blks[:4])),
-			Size:   blockSize,
-			Header: parseBlockHeader,
-			Tx:     parseBlockTransactions,
+			BlockNumber: blockNum,
+			Magic:       ByteSwap(fmt.Sprintf("%X", blks[:4])),
+			Size:        blockSize,
+			Header:      parseBlockHeader,
+			Tx:          parseBlockTransactions,
 		}
 		return parseBlock, nil
 	} else {
@@ -496,5 +499,18 @@ func ParseTransactionBlockSize(blkTranSize []byte) (int64, error) {
 	} else {
 		errMsg := fmt.Sprintln("did not expect to return outside of if statement in parseTransactionBlockSize() function. leading byte does not match anything in table from https://learnmeabitcoin.com/technical/general/compact-size/#structure")
 		return int64(-1), errors.New(errMsg)
+	}
+}
+
+// Output a single blocks details to the terminal.
+// Used in ParseBlocks function.
+func printBlock(block BlockData, tmplFile string) {
+	tmpl, err := template.ParseFiles(tmplFile)
+	if err != nil {
+		log.Fatalf("can not find go lang template file\nerror: %v\n", err)
+	}
+	err = tmpl.Execute(os.Stdout, block)
+	if err != nil {
+		log.Fatalf("can not execute go lang template\nerror: %v\n", err)
 	}
 }
