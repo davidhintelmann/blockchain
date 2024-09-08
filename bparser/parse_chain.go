@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davidhintelmann/blockchain/bparser/ttmpl"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 )
@@ -102,11 +103,17 @@ func ParseBlocks(blks []byte, block_height_start int, block_height_end int, inpu
 			errMsg := fmt.Sprintf("could not parse block, error: %v\n", err)
 			return errors.New(errMsg)
 		}
-
-		fmt.Printf("Block Number: %d\nMagic Number: %v\nBlock Size  : %v\n", i, block.MagicNumber, block.Size)
-		blockTimeStamp := time.Unix(block.BlockHeader.TimestampUnix, 0)
-		fmt.Printf("Version     : %v\nBlock Hash  : %v\nPrev Block  : %v\nMerkle Root : %v\nTimestamp   : %v\nBits        : %v\nNonce       : %v\n\n", block.BlockHeader.Version, block.BlockHeader.BlockHash, block.BlockHeader.PrevBlock, block.BlockHeader.MerkleRoot, blockTimeStamp, block.BlockHeader.Bits, block.BlockHeader.Nonce)
-		if i == 1 {
+		if i == 0 {
+			ttmpl.PrintBlock(block)
+			// fmt.Printf("Block Number: %d\nMagic Number: %v\nBlock Size  : %v\n", i, block.Magic, block.Size)
+			// blockTimeStamp := time.Unix(block.Header.TimestampUnix, 0)
+			// fmt.Printf("Version     : %v\nBlock Hash  : %v\nPrev Block  : %v\nMerkle Root : %v\nTimestamp   : %v\nBits        : %v\nNonce       : %v\n", block.Header.Version, block.Header.BlockHash, block.Header.PrevBlock, block.Header.MerkleRoot, blockTimeStamp, block.Header.Bits, block.Header.Nonce)
+			// fmt.Printf("Transactions: %d\n\n", block.Tx.TxCount)
+		} else if block.Tx.TxCount > 1 {
+			fmt.Printf("Block Number: %d\nMagic Number: %v\nBlock Size  : %v\n", i, block.Magic, block.Size)
+			blockTimeStamp := time.Unix(block.Header.TimestampUnix, 0)
+			fmt.Printf("Version     : %v\nBlock Hash  : %v\nPrev Block  : %v\nMerkle Root : %v\nTimestamp   : %v\nBits        : %v\nNonce       : %v\n", block.Header.Version, block.Header.BlockHash, block.Header.PrevBlock, block.Header.MerkleRoot, blockTimeStamp, block.Header.Bits, block.Header.Nonce)
+			fmt.Printf("Transactions: %d\n\n", block.Tx.TxCount)
 			break
 		}
 	}
@@ -168,10 +175,10 @@ type BlockHeaderString struct {
 
 // structs for block strings/int/time data in big-endian format
 type BlockData struct {
-	MagicNumber string
-	Size        int64
-	BlockHeader BlockHeaderData
-	Tx          BlockTransactionsBytes
+	Magic  string
+	Size   int64
+	Header BlockHeaderData
+	Tx     BlockTransactionsData
 }
 
 type BlockHeaderData struct {
@@ -184,10 +191,10 @@ type BlockHeaderData struct {
 	Nonce         int64
 }
 
-// type BlockTransactionData struct {
-// 	TxCount string
-// 	TxId    string
-// }
+type BlockTransactionsData struct {
+	TxCount int64
+	TxId    []byte
+}
 
 type ParseBlockSizeBytes struct {
 	Size []byte
@@ -352,10 +359,10 @@ func ParseBlock(blks []byte) (BlockData, error) {
 		}
 
 		parseBlock := BlockData{
-			MagicNumber: ByteSwap(fmt.Sprintf("%X", blks[:4])),
-			Size:        blockSize,
-			BlockHeader: parseBlockHeader,
-			Tx:          parseBlockTransactions,
+			Magic:  ByteSwap(fmt.Sprintf("%X", blks[:4])),
+			Size:   blockSize,
+			Header: parseBlockHeader,
+			Tx:     parseBlockTransactions,
 		}
 		return parseBlock, nil
 	} else {
@@ -416,46 +423,37 @@ func parseBlockHeader(blkHeader []byte) (BlockHeaderData, error) {
 /*
 parseBlockTransactions function is used in ParseBlock function to parse the transaction block in dat file from bitcoin-core.
 */
-func parseBlockTransactions(blkTransactions []byte) (BlockTransactionsBytes, error) {
-	// txCount, err := parseTransactionBlockSize(blkTransactions[:9])
-	// if err != nil || txCount < 0 {
-	// 	errMsg := fmt.Sprintf("can not parse TransactionBlockSize bytes in parseBlockTransactions() function.\nerror: %v\n", err)
-	// 	return BlockTransactionsBytes{}, errors.New(errMsg)
-	// }
-
-	blockTransactionsBytes := BlockTransactionsBytes{
-		TxCount: blkTransactions[:1],
-		TxId:    blkTransactions[1:],
-	}
-
-	// delete below once done above
-	txCount, err := strconv.ParseInt(ByteSwap(fmt.Sprintf("%X", blockTransactionsBytes.TxCount)), 16, 16)
-	if err != nil {
-		errMsg := fmt.Sprintf("can not swap TxCount bytes in parseBlockTransactions() function.\nerror: %v\n", err)
-		return BlockTransactionsBytes{}, errors.New(errMsg)
-	}
-
+func parseBlockTransactions(blkTransactions []byte) (BlockTransactionsData, error) {
 	// size of incoming transaction block as hexidecimal
 	// for more info read https://learnmeabitcoin.com/technical/general/compact-size/
 	// transactionSizeHex := fmt.Sprintf("%x", 255)
-	fmt.Printf("TRANSACTIONS COUNT: %v\n", txCount)
-	fmt.Printf("TRANSACTIONS LEN  : %v\n", len(blockTransactionsBytes.TxId))
-	fmt.Printf("TRANSACTIONS: %v\n", fmt.Sprintf("%X", blockTransactionsBytes.TxId))
+	txCount, err := ParseTransactionBlockSize(blkTransactions[:9])
+	if err != nil || txCount < 0 {
+		errMsg := fmt.Sprintf("can not parse transaction block size in parseBlockTransactions() function.\nerror: %v\n", err)
+		return BlockTransactionsData{}, errors.New(errMsg)
+	}
 
-	version := blockTransactionsBytes.TxId[:4]
-	// marker := blockTransactionsBytes.TxId[4:5]
-	// flag := blockTransactionsBytes.TxId[5:6]
+	blockTransactionsData := BlockTransactionsData{
+		TxCount: txCount,
+		TxId:    blkTransactions[1:],
+	}
+
+	// fmt.Printf("TRANSACTIONS: %v\n", txCount)
+
+	// version := blockTransactionsData.TxId[:4]
+	// marker := blockTransactionsData.TxId[4:5]
+	// flag := blockTransactionsData.TxId[5:6]
 
 	// variable size for inputCount, learn more at https://learnmeabitcoin.com/technical/general/compact-size/
-	// inputCount := blockTransactionsBytes.TxId[6:7]
+	// inputCount := blockTransactionsData.TxId[6:7]
 	// inputs :=
 
 	// variable size for outputCount, learn more at https://learnmeabitcoin.com/technical/general/compact-size/
-	// outputCount := blockTransactionsBytes.TxId[6:7]
+	// outputCount := blockTransactionsData.TxId[6:7]
 
-	fmt.Printf("TV: %v\n", fmt.Sprintf("%X", version))
+	// fmt.Printf("TV: %v\n", fmt.Sprintf("%X", version))
 
-	return blockTransactionsBytes, nil
+	return blockTransactionsData, nil
 }
 
 /*
