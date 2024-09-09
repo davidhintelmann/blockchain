@@ -18,6 +18,8 @@ Tx Input Count : {{ .Tx.Tx.InputCount }} {{ range .Tx.Tx.Inputs }}
     ScriptSigSize: {{ .ScriptSigSize }}
     ScriptSig    : {{ .ScriptSig }}
     Sequence     : {{ .Sequence }} {{ end }}
-Tx Output Count: {{ .Tx.Tx.OutputCount }}
-Tx Outputs     : {{ .Tx.Tx.Outputs }}
-Tx Locktime    : {{ .Tx.Tx.Locktime }}
+Tx Output Count: {{ .Tx.Tx.OutputCount }} {{ range .Tx.Tx.Outputs }} 
+    Amount          : {{ .Amount }}
+    ScriptPubKeySize: {{ .ScriptPubKeySize }}
+    ScriptPubKey    : {{ .ScriptPubKey }}
+{{ end }}

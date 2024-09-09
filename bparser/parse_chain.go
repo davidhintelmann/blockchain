@@ -67,7 +67,16 @@ func ByteSwapStr(hash string) string {
 }
 
 /*
-Insert Byte Swap Func
+ByteSwap function take variable bytes as input and swaps the bytes and return a string (all upper case).
+
+This is for converting from LittleEndian to BigEndian.
+
+# Example
+
+	genesisBlock := "6FE28C0AB6F1B372C1A6A246AE63F74F931E8365E15A089C68D6190000000000"
+	ByteSwap(genesisBlock)
+
+returns "000000000019D6689C085AE165831E934FF763AE46A2A6C172B3F1B60A8CE26F"
 */
 func ByteSwap(hash []byte) string {
 	hashString := fmt.Sprintf("%X", hash)
@@ -102,8 +111,8 @@ func GlobDat(blocksFilePath string) ([]string, error) {
 /*
 ParseBlocks function will parse an entire .dat bitcoin-core file (input in the form of bytes), and output a text file.
 */
-func ParseBlocks(blks []byte, block_height_start int, block_height_end int, input_remainder []byte) (int, error) {
-	if input_remainder[0] != 0 {
+func ParseBlocks(blks []byte, block_height_start int, block_height_end int, input_remainder []byte) (int, []byte, error) {
+	if len(input_remainder) != 0 {
 		blks = append(input_remainder, blks...)
 	}
 
@@ -112,32 +121,33 @@ func ParseBlocks(blks []byte, block_height_start int, block_height_end int, inpu
 
 	// var block BlockData
 	for i, b := range blocks {
-		// fmt.Printf("parsing block number: %d\n", i)
+		fmt.Printf("parsing block number: %d\n", i)
 		blk := append([]byte{249, 190, 180, 217}, b...)
 
 		// parse block
-		block, err := ParseBlock(blk, i)
+		_, err := ParseBlock(blk, i)
 		if err != nil {
 			errMsg := fmt.Sprintf("could not parse block, error: %v\n", err)
-			return -1, errors.New(errMsg)
+			return -1, nil, errors.New(errMsg)
 		}
 
 		if i < block_height_start {
 			continue
 		} else if i >= block_height_end {
-			return i, nil
-		} else if i == 0 {
+			return i, blk, nil
+		} else if i == len(blocks)-1 { // else if block.Tx.TxCount > 2         else if i == 95414
 			// must be run from main.go
-			printBlock(block, "../bparser/block.tmpl")
-		} else if i == 95414 { // else if block.Tx.TxCount > 2
-			// must be run from main.go
-			printBlock(block, "../bparser/block.tmpl")
-			fmt.Println()
-			return i, nil
+			// printBlock(block, "../bparser/block.tmpl")
+			// fmt.Println()
+			return i - 1, blk, nil
 		}
+		// else if i == 0 {
+		// 	// must be run from main.go
+		// 	printBlock(block, "../bparser/block.tmpl")
+		// }
 	}
 
-	return -1, errors.New("did no expect to exit loop, ParseBlocks() function")
+	return -1, nil, errors.New("did no expect to exit loop, ParseBlocks() function")
 }
 
 /*

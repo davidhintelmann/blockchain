@@ -5,7 +5,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"path/filepath"
 	"time"
 
 	"golang.org/x/text/language"
@@ -27,39 +26,46 @@ func main() {
 	fmt.Println(bparser.ByteSwapStr(gensisBlock))
 	fmt.Println(bparser.ByteSwapArray(gensisBlock))
 
-	fmt.Println(filepath.Dir(blocksFilePath))
+	// fmt.Println(filepath.Dir(blocksFilePath))
 
 	matches, err := bparser.GlobDat(blocksFilePath)
 	if err != nil {
 		log.Fatalf("error: %v\n", err)
 	}
 
-	fileStart := time.Now()
-	file, err := os.Open(matches[0])
-	if err != nil {
-		log.Fatalf("error: %v\n", err)
-	}
-	defer file.Close()
-
-	readAll, err := io.ReadAll(file)
-	if err != nil {
-		log.Fatalf("error: %v\n", err)
-	}
-	fmt.Printf("duration of file read: %v\n", time.Since(fileStart))
-
-	// fmt.Println(readAll[:295])
-	blkFileLen := len(readAll)
 	p := message.NewPrinter(language.English)
-	p.Printf("block file length: %d\n", blkFileLen)
-	p.Printf("block height: %d\n", blk00000Height)
-	fmt.Println()
+	p.Printf("blk00000Height: %d\n", blk00000Height)
 
 	parseStart := time.Now()
-	blockHeight, err := bparser.ParseBlocks(readAll, 0, blk00000Height, []byte{0})
-	if err != nil {
-		log.Fatalf("error: %v\n", err)
+	var blkRemainder []byte
+	for i, filePath := range matches {
+		fmt.Printf("parsing file %v\n", filePath)
+		fileStart := time.Now()
+		file, err := os.Open(filePath)
+		if err != nil {
+			log.Fatalf("error: %v\n", err)
+		}
+		defer file.Close()
+
+		readAll, err := io.ReadAll(file)
+		if err != nil {
+			log.Fatalf("error: %v\n", err)
+		}
+		fmt.Printf("duration of file read: %v\n", time.Since(fileStart))
+
+		blkFileLen := len(readAll)
+		p.Printf("block file length (bytes): %d\n", blkFileLen)
+		fmt.Println()
+
+		parseFileStart := time.Now()
+		blockHeight, blkR, err := bparser.ParseBlocks(readAll, 0, blkFileLen, blkRemainder)
+		blkRemainder = blkR
+		if err != nil {
+			log.Fatalf("error: %v\n", err)
+		}
+		fmt.Printf("duration of parsing dat file %v: %v\n", i, time.Since(parseFileStart))
+		p.Printf("total blocks %d\n", blk00000Height)
+		p.Printf("parsed %d blocks\n", blockHeight)
 	}
-	fmt.Printf("duration of parsing single dat file: %v\n", time.Since(parseStart))
-	p.Printf("total blocks %d\n", blk00000Height)
-	p.Printf("parsed %d blocks\n", blockHeight)
+	fmt.Printf("duration of parsing dat files: %v\n", time.Since(parseStart))
 }
