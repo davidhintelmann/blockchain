@@ -67,7 +67,7 @@ func BenchmarkParseBlk(b *testing.B) {
 		// p.Printf("block height: %d\n", blk00000Height)
 		// fmt.Println()
 
-		err = bparser.ParseBlocks(readAll, 0, 1, []byte{0})
+		_, err = bparser.ParseBlocks(readAll, 0, 1, []byte{0})
 		if err != nil {
 			log.Fatalf("error: %v\n", err)
 		}

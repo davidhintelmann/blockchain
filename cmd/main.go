@@ -55,9 +55,11 @@ func main() {
 	fmt.Println()
 
 	parseStart := time.Now()
-	err = bparser.ParseBlocks(readAll, 0, 1, []byte{0})
+	blockHeight, err := bparser.ParseBlocks(readAll, 0, blk00000Height, []byte{0})
 	if err != nil {
 		log.Fatalf("error: %v\n", err)
 	}
 	fmt.Printf("duration of parsing single dat file: %v\n", time.Since(parseStart))
+	p.Printf("total blocks %d\n", blk00000Height)
+	p.Printf("parsed %d blocks\n", blockHeight)
 }
