@@ -24,7 +24,7 @@ const (
 func main() {
 	fmt.Printf("Gensis Block Hash: %s\nGensis Block Swap: %s\n", gensisBlock, gensisBlockSwap)
 	// two lines below are not necessary
-	fmt.Println(bparser.ByteSwap(gensisBlock))
+	fmt.Println(bparser.ByteSwapStr(gensisBlock))
 	fmt.Println(bparser.ByteSwapArray(gensisBlock))
 
 	fmt.Println(filepath.Dir(blocksFilePath))

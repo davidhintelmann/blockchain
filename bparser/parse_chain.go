@@ -18,9 +18,9 @@ import (
 	"time"
 )
 
-const (
-	segWitHeight = 481_824
-)
+// const (
+// 	segWitHeight = 481_824
+// )
 
 /*
 ByteSwapArray function will take a 64 character hexidecimal string and swap the bytes and return as a slice.
@@ -45,7 +45,7 @@ func ByteSwapArray(hash string) []string {
 }
 
 /*
-ByteSwap function will take a 64 character hexidecimal string and swap the bytes and return a string (all upper case).
+ByteSwapStr function will take a 64 character hexidecimal string and swap the bytes and return a string (all upper case).
 
 This is for converting from LittleEndian to BigEndian and vice-versa.
 
@@ -56,10 +56,24 @@ This is for converting from LittleEndian to BigEndian and vice-versa.
 
 returns "000000000019D6689C085AE165831E934FF763AE46A2A6C172B3F1B60A8CE26F"
 */
-func ByteSwap(hash string) string {
+func ByteSwapStr(hash string) string {
 	var hashHex []string
 	for i := 0; i < len(hash); i += 2 {
 		hashHex = append(hashHex, hash[i:i+2])
+	}
+	slices.Reverse(hashHex)
+
+	return strings.ToUpper(strings.Join(hashHex, ""))
+}
+
+/*
+Insert Byte Swap Func
+*/
+func ByteSwap(hash []byte) string {
+	hashString := fmt.Sprintf("%X", hash)
+	var hashHex []string
+	for i := 0; i < len(hashString); i += 2 {
+		hashHex = append(hashHex, hashString[i:i+2])
 	}
 	slices.Reverse(hashHex)
 
@@ -89,8 +103,6 @@ func GlobDat(blocksFilePath string) ([]string, error) {
 ParseBlocks function will parse an entire .dat bitcoin-core file (input in the form of bytes), and output a text file.
 */
 func ParseBlocks(blks []byte, block_height_start int, block_height_end int, input_remainder []byte) (int, error) {
-	// blocks := make(map[int]BlockStructure)
-	// var blockRemainder byte
 	if input_remainder[0] != 0 {
 		blks = append(input_remainder, blks...)
 	}
@@ -144,10 +156,10 @@ type ParseBlockBytes struct {
 }
 
 type BlockHeaderBytes struct {
-	Version    []byte // int
+	Version    []byte
 	PrevBlock  []byte
 	MerkleRoot []byte
-	Timestamp  []byte // time.Time
+	Timestamp  []byte
 	Bits       []byte
 	Nonce      []byte
 }
@@ -173,11 +185,6 @@ type BlockHeaderString struct {
 	Bits       string
 	Nonce      string
 }
-
-// type BlockTransactionsString struct {
-// 	TxCount string
-// 	TxId    string
-// }
 
 // structs for block strings/int/time data in big-endian format
 type BlockData struct {
@@ -238,7 +245,7 @@ func (p ParseBlockSizeBytes) Raw() []byte {
 func (p ParseBlockSizeBytes) ParseInt() (int64, error) {
 	bs := fmt.Sprintf("%X", p.Size)
 	// swap bytes
-	blockSize2 := ByteSwap(bs)
+	blockSize2 := ByteSwapStr(bs)
 	// convert string to int64
 	bs2, err := strconv.ParseInt(blockSize2, 16, 64)
 	if err != nil {
@@ -280,7 +287,7 @@ func ParseBlockSizeFunc(blks []byte) (int64, error) {
 	blockSize := blks[4:8]
 	bs := fmt.Sprintf("%X", blockSize)
 	// swap bytes
-	blockSize2 := ByteSwap(bs)
+	blockSize2 := ByteSwapStr(bs)
 	// convert string to int64
 	bs2, err := strconv.ParseInt(blockSize2, 16, 16)
 	if err != nil {
@@ -338,12 +345,12 @@ func ParseBlockStr(blks []byte) (ParseBlockString, error) {
 		}
 
 		parseBlockHeader := BlockHeaderString{
-			Version:    ByteSwap(fmt.Sprintf("%X", blks[8:12])),
-			PrevBlock:  ByteSwap(fmt.Sprintf("%X", blks[12:44])),
-			MerkleRoot: ByteSwap(fmt.Sprintf("%X", blks[44:76])),
-			Timestamp:  ByteSwap(fmt.Sprintf("%X", blks[76:80])),
-			Bits:       ByteSwap(fmt.Sprintf("%X", blks[80:84])),
-			Nonce:      ByteSwap(fmt.Sprintf("%X", blks[84:88])),
+			Version:    ByteSwapStr(fmt.Sprintf("%X", blks[8:12])),
+			PrevBlock:  ByteSwapStr(fmt.Sprintf("%X", blks[12:44])),
+			MerkleRoot: ByteSwapStr(fmt.Sprintf("%X", blks[44:76])),
+			Timestamp:  ByteSwapStr(fmt.Sprintf("%X", blks[76:80])),
+			Bits:       ByteSwapStr(fmt.Sprintf("%X", blks[80:84])),
+			Nonce:      ByteSwapStr(fmt.Sprintf("%X", blks[84:88])),
 		}
 
 		parseBlockTransactions := BlockTransactionsBytes{
@@ -352,8 +359,8 @@ func ParseBlockStr(blks []byte) (ParseBlockString, error) {
 		}
 
 		parseBlock := ParseBlockString{
-			MagicNumber: ByteSwap(fmt.Sprintf("%X", blks[:4])),
-			Size:        ByteSwap(fmt.Sprintf("%X", blks[4:8])),
+			MagicNumber: ByteSwapStr(fmt.Sprintf("%X", blks[:4])),
+			Size:        ByteSwapStr(fmt.Sprintf("%X", blks[4:8])),
 			BlockHeader: parseBlockHeader,
 			Tx:          parseBlockTransactions,
 		}
@@ -368,6 +375,7 @@ func ParseBlockStr(blks []byte) (ParseBlockString, error) {
 ParseBlock function will parse a single block at a time and return strings or ints of big-endian numbers.
 */
 func ParseBlock(blk []byte, blockNum int) (BlockData, error) {
+	// var blockSize int64
 	if len(blk) >= 4 {
 		blockSize, err := ParseBlockSize(blk[4:8])
 		if err != nil {
@@ -386,7 +394,7 @@ func ParseBlock(blk []byte, blockNum int) (BlockData, error) {
 		}
 
 		// input the slice of block bytes which are apart of block transactions
-		parseBlockTransactions, err := parseBlockTransactions(blk[88 : blockSize+8])
+		parseBlockTransactions, err := parseBlockTransactions(blk[88:])
 		if err != nil {
 			errMsg := fmt.Sprintf("can not parse transactions in ParseBlock() function.\nerror: %v\n", err)
 			return BlockData{}, errors.New(errMsg)
@@ -394,7 +402,7 @@ func ParseBlock(blk []byte, blockNum int) (BlockData, error) {
 
 		parseBlock := BlockData{
 			BlockNumber: blockNum,
-			Magic:       ByteSwap(fmt.Sprintf("%X", blk[:4])),
+			Magic:       ByteSwapStr(fmt.Sprintf("%X", blk[:4])),
 			Size:        blockSize,
 			Header:      parseBlockHeader,
 			Tx:          parseBlockTransactions,
@@ -410,19 +418,19 @@ func ParseBlock(blk []byte, blockNum int) (BlockData, error) {
 parseBlockHeader function is used in ParseBlock function to parse the header block in dat file from bitcoin-core.
 */
 func parseBlockHeader(blkHeader []byte) (BlockHeaderData, error) {
-	v, err := strconv.ParseInt(ByteSwap(fmt.Sprintf("%X", blkHeader[:4])), 16, 16)
+	v, err := strconv.ParseInt(ByteSwapStr(fmt.Sprintf("%X", blkHeader[:4])), 16, 16)
 	if err != nil {
 		errMsg := fmt.Sprintf("can not swap version bytes in ParseBlock() function.\nerror: %v\n", err)
 		return BlockHeaderData{}, errors.New(errMsg)
 	}
 
-	t, err := strconv.ParseInt(ByteSwap(fmt.Sprintf("%X", blkHeader[68:72])), 16, 64)
+	t, err := strconv.ParseInt(ByteSwapStr(fmt.Sprintf("%X", blkHeader[68:72])), 16, 64)
 	if err != nil {
 		errMsg := fmt.Sprintf("can not swap time bytes in ParseBlock() function.\nerror: %v\n", err)
 		return BlockHeaderData{}, errors.New(errMsg)
 	}
 
-	n, err := strconv.ParseInt(ByteSwap(fmt.Sprintf("%X", blkHeader[76:80])), 16, 64)
+	n, err := strconv.ParseInt(ByteSwapStr(fmt.Sprintf("%X", blkHeader[76:80])), 16, 64)
 	if err != nil {
 		errMsg := fmt.Sprintf("can not swap nonce bytes in ParseBlock() function.\nerror: %v\n", err)
 		return BlockHeaderData{}, errors.New(errMsg)
@@ -443,10 +451,10 @@ func parseBlockHeader(blkHeader []byte) (BlockHeaderData, error) {
 		Version:       v,
 		BlockHash:     fmt.Sprintf("%X", sha256_double),
 		PrevBlock:     fmt.Sprintf("%X", prevBlock),
-		MerkleRoot:    ByteSwap(fmt.Sprintf("%X", blkHeader[36:68])),
+		MerkleRoot:    ByteSwapStr(fmt.Sprintf("%X", blkHeader[36:68])),
 		TimestampUnix: t,
 		Timestamp:     time.Unix(t, 0),
-		Bits:          ByteSwap(fmt.Sprintf("%X", blkHeader[72:76])),
+		Bits:          ByteSwapStr(fmt.Sprintf("%X", blkHeader[72:76])),
 		Nonce:         n,
 	}
 
@@ -464,18 +472,36 @@ func parseBlockTransactions(blkTransactions []byte) (BlockTransactionsData, erro
 		return BlockTransactionsData{}, errors.New(errMsg)
 	}
 
-	// parse version number for block transaction
-	v, err := strconv.ParseInt(ByteSwap(fmt.Sprintf("%X", blkTransactions[pad:pad+4])), 16, 16)
+	txData, err := ParseBlockTx(blkTransactions, pad)
 	if err != nil {
-		errMsg := fmt.Sprintf("can not swap version bytes in ParseBlock() function.\nerror: %v\n", err)
+		errMsg := fmt.Sprintf("can not swap parse block tx in ParseBlock() function.\nerror: %v\n", err)
 		return BlockTransactionsData{}, errors.New(errMsg)
 	}
 
+	blockTransactionsData := BlockTransactionsData{
+		TxCount: txCount,
+		Tx:      txData,
+	}
+
+	return blockTransactionsData, nil
+}
+
+/*
+ParseBlockTx function is used in parseBlockTransactions function to parse the individual tx in transaction block.
+*/
+func ParseBlockTx(blkTransactions []byte, pad int) (TxData, error) {
+	// parse version number for block transaction
+	v, err := strconv.ParseInt(ByteSwapStr(fmt.Sprintf("%X", blkTransactions[pad:pad+4])), 16, 16)
+	if err != nil {
+		errMsg := fmt.Sprintf("can not swap version bytes in ParseBlock() function.\nerror: %v\n", err)
+		return TxData{}, errors.New(errMsg)
+	}
+
 	// variable size for inputCount
-	inputCount, txInputPad, err := ParseTransactionBlockSize(blkTransactions[pad+4 : pad+18]) // blockTransactionsData.Tx[4:14]
+	inputCount, txInputPad, err := ParseTransactionBlockSize(blkTransactions[pad+4 : pad+18])
 	if err != nil || inputCount < 0 {
 		errMsg := fmt.Sprintf("can not parse transaction input count in parseBlockTransactions() function, segwit transaction?\nerror: %v\n", err)
-		return BlockTransactionsData{}, errors.New(errMsg)
+		return TxData{}, errors.New(errMsg)
 	}
 
 	var txInputs []TxInputs
@@ -488,15 +514,14 @@ func parseBlockTransactions(blkTransactions []byte) (BlockTransactionsData, erro
 		scriptSigSize, scriptPad, err := ParseTransactionBlockSize(blkTx[36:46])
 		if err != nil || inputCount < 0 {
 			errMsg := fmt.Sprintf("can not parse transaction input script size in parseBlockTransactions() function, segwit transaction?\nerror: %v\n", err)
-			return BlockTransactionsData{}, errors.New(errMsg)
+			return TxData{}, errors.New(errMsg)
 		}
 
 		scriptPad = scriptPad + 36
 		scriptPadEnd := blkPad + scriptPad + 4
-		scriptSig := blkTx[scriptPad : scriptPad+int(scriptSigSize)]                     // blockTransactionsData.Tx[43:44]
-		sequence := blkTx[scriptPad+int(scriptSigSize) : scriptPad+4+int(scriptSigSize)] // blockTransactionsData.Tx[44:48]
+		scriptSig := blkTx[scriptPad : scriptPad+int(scriptSigSize)]
+		sequence := blkTx[scriptPad+int(scriptSigSize) : scriptPad+4+int(scriptSigSize)]
 		blkPad = scriptPadEnd + int(scriptSigSize)
-		// fmt.Println(int(scriptSigSize), len(scriptSig), int(scriptSigSize) == len(scriptSig))
 
 		txInput := TxInputs{
 			TxId:          fmt.Sprintf("%X", txId),
@@ -509,26 +534,30 @@ func parseBlockTransactions(blkTransactions []byte) (BlockTransactionsData, erro
 	}
 
 	// variable size for outputCount
-	// outputCount := blockTransactionsData.TxId[6:7]
 	outputCount, txOutputPad, err := ParseTransactionBlockSize(blkTransactions[blkPad : blkPad+10]) // blockTransactionsData.Tx[4:14]
 	if err != nil || outputCount < 0 {
 		errMsg := fmt.Sprintf("can not parse transaction output count in parseBlockTransactions() function, segwit transaction?\nerror: %v\n", err)
-		return BlockTransactionsData{}, errors.New(errMsg)
+		return TxData{}, errors.New(errMsg)
 	}
 
 	var txOutputs []TxOutputs
-	// var blkPad int = txOutputPad + 4
+	blkPadOutput := blkPad + txOutputPad
 	for i := 0; i < int(outputCount); i++ {
-		blkTx := blkTransactions[txOutputPad:]
+		blkTx := blkTransactions[blkPadOutput:]
 		amount := blkTx[:8]
 		// variable size
-		scriptPubKeySize, scriptPad, err := ParseTransactionBlockSize(blkTx[txOutputPad+8 : txOutputPad+18]) // blockTransactionsData.Tx[4:14]
+		scriptPubKeySize, scriptPad, err := ParseTransactionBlockSize(blkTx[8:18]) // blockTransactionsData.Tx[4:14]
 		if err != nil || outputCount < 0 {
 			errMsg := fmt.Sprintf("can not parse transaction output script size in parseBlockTransactions() function, segwit transaction?\nerror: %v\n", err)
-			return BlockTransactionsData{}, errors.New(errMsg)
+			return TxData{}, errors.New(errMsg)
 		}
-		scriptPubKey := blkTx[txOutputPad+scriptPad+8 : txOutputPad+scriptPad+8+int(scriptPubKeySize)]
-		txOutputPad = txOutputPad + scriptPad + 8 + int(scriptPubKeySize)
+		scriptPubKey := blkTx[scriptPad+8 : scriptPad+8+int(scriptPubKeySize)]
+		blkPadOutput = blkPadOutput + scriptPad + 8 + int(scriptPubKeySize)
+
+		if int(scriptPubKeySize) != len(scriptPubKey) {
+			errMsg := fmt.Sprintf("scriptPubKeySize does not equal length of scriptPubKey bytes in parseBlockTransactions() function\nerror: %v\n", err)
+			return TxData{}, errors.New(errMsg)
+		}
 
 		txOutput := TxOutputs{
 			Amount:           amount,
@@ -547,12 +576,7 @@ func parseBlockTransactions(blkTransactions []byte) (BlockTransactionsData, erro
 		Locktime:    blkTransactions[len(blkTransactions)-4:],
 	}
 
-	blockTransactionsData := BlockTransactionsData{
-		TxCount: txCount,
-		Tx:      txData,
-	}
-
-	return blockTransactionsData, nil
+	return txData, nil
 }
 
 /*
@@ -581,7 +605,7 @@ func ParseTransactionBlockSize(blkTranSize []byte) (int64, int, error) {
 		}
 		return txCount, 1, nil
 	} else if leadingByte == "FD" {
-		number := ByteSwap(fmt.Sprintf("%x", blkTranSize[1:3]))
+		number := ByteSwapStr(fmt.Sprintf("%x", blkTranSize[1:3]))
 		txCount, err := strconv.ParseInt(number, 16, 64)
 		if err != nil {
 			errMsg := fmt.Sprintf("can not swap TxCount bytes in parseTransactionBlockSize() function.\nerror: %v\n", err)
@@ -589,7 +613,7 @@ func ParseTransactionBlockSize(blkTranSize []byte) (int64, int, error) {
 		}
 		return txCount, 2, nil
 	} else if leadingByte == "FE" {
-		number := ByteSwap(fmt.Sprintf("%x", blkTranSize[1:5]))
+		number := ByteSwapStr(fmt.Sprintf("%x", blkTranSize[1:5]))
 		txCount, err := strconv.ParseInt(number, 16, 64)
 		if err != nil {
 			errMsg := fmt.Sprintf("can not swap TxCount bytes in parseTransactionBlockSize() function.\nerror: %v\n", err)
@@ -597,7 +621,7 @@ func ParseTransactionBlockSize(blkTranSize []byte) (int64, int, error) {
 		}
 		return txCount, 4, nil
 	} else if leadingByte == "FF" {
-		number := ByteSwap(fmt.Sprintf("%x", blkTranSize[1:9]))
+		number := ByteSwapStr(fmt.Sprintf("%x", blkTranSize[1:9]))
 		txCount, err := strconv.ParseInt(number, 16, 64)
 		if err != nil {
 			errMsg := fmt.Sprintf("can not swap TxCount bytes in parseTransactionBlockSize() function.\nerror: %v\n", err)
