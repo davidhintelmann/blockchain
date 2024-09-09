@@ -1,12 +1,23 @@
 ---
-Block Number: {{ .BlockNumber }}
-Magic       : {{ .Magic }}
-Block Size  : {{ .Size }}
-Version     : {{ .Header.Version }}
-Block Hash  : {{ .Header.BlockHash }}
-Prev Block  : {{ .Header.PrevBlock }}
-Merkle Rook : {{ .Header.MerkleRoot }}
-Timestamp   : {{ .Header.TimestampUnix }}
-Bits        : {{ .Header.Bits }}
-Nonce       : {{ .Header.Nonce }}
-Number of Tx: {{ .Tx.TxCount }}
+Block Number   : {{ .BlockNumber }}
+Magic          : {{ .Magic }}
+Block Size     : {{ .Size }}
+Version        : {{ .Header.Version }}
+Block Hash     : {{ .Header.BlockHash }}
+Prev Block     : {{ .Header.PrevBlock }}
+Merkle Rook    : {{ .Header.MerkleRoot }}
+Timestamp Unix : {{ .Header.TimestampUnix }}
+Timestamp      : {{ .Header.Timestamp }}
+Bits           : {{ .Header.Bits }}
+Nonce          : {{ .Header.Nonce }}
+Number of Tx   : {{ .Tx.TxCount }}
+Tx Version     : {{ .Tx.Tx.Version }}
+Tx Input Count : {{ .Tx.Tx.InputCount }} {{ range .Tx.Tx.Inputs }} 
+    Tx ID        : {{ .TxId }}
+    Vout         : {{ .Vout }}
+    ScriptSigSize: {{ .ScriptSigSize }}
+    ScriptSig    : {{ .ScriptSig }}
+    Sequence     : {{ .Sequence }} {{ end }}
+Tx Output Count: {{ .Tx.Tx.OutputCount }}
+Tx Outputs     : {{ .Tx.Tx.Outputs }}
+Tx Locktime    : {{ .Tx.Tx.Locktime }}
